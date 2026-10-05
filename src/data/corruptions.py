@@ -87,10 +87,15 @@ def apply_corruption(img: Image.Image, name: str, severity: int, seed: int = 0) 
     density = max(1, int(round(base_density * (h0 * w0) / (224.0 * 224.0))))
     out = _to_array(img)
     h, w, _ = out.shape
+    # Blob radii scale with image size like the counts: reference radii target
+    # 224px images, so 28px inputs use radius/8 (min 1px) to keep the occluded
+    # fraction comparable instead of blacking out whole frames.
+    scale = min(h, w) / 224.0
+    max_r = max(2, int(round((3 + severity) * scale)))
     for _ in range(density):
         y = int(rng.integers(0, h))
         x = int(rng.integers(0, w))
-        r = int(rng.integers(1, 3 + severity))
+        r = int(rng.integers(1, max_r))
         y0, y1 = max(0, y - r), min(h, y + r + 1)
         x0, x1 = max(0, x - r), min(w, x + r + 1)
         out[y0:y1, x0:x1] = out[y0:y1, x0:x1] * 0.4
