@@ -20,10 +20,10 @@ WHAT HAPPENS: prints GPU + python; if No GPU, use Runtime > Change runtime type 
 !python --version
 ```
 
-Cell 1 — YOUR WORK: paste, replace <your-repo-url> with this folder's git URL.
+Cell 1 — YOUR WORK: paste as-is (URL already set).
 WHAT HAPPENS: clones project, enters folder.
 ```bash
-!git clone <your-repo-url> medmnist-c-cal
+!git clone https://github.com/xmadmaxdx/medmnist-c-cal.git medmnist-c-cal
 %cd medmnist-c-cal
 !pwd
 !ls
