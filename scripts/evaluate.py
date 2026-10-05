@@ -77,13 +77,13 @@ def main() -> None:
     mirror_file(out)
     tl, ty = _val_logits(model, test_loader, device)
     stem = out.stem
-    for ext in ("png", "pdf"):
-        rp = save_reliability(reliability_points(tl / temp, ty), out.parent / f"{stem}.reliability.{ext}")
-        mirror_file(rp)
+    rp = save_reliability(reliability_points(tl / temp, ty), out.parent / f"{stem}.reliability.png")
+    mirror_file(rp)
+    mirror_file(rp.with_suffix(".pdf"))
     if sev_curve:
-        for ext in ("png", "pdf"):
-            sp = save_severity_curve(sev_curve, out.parent / f"{stem}.severity_ece.{ext}")
-            mirror_file(sp)
+        sp = save_severity_curve(sev_curve, out.parent / f"{stem}.severity_ece.png")
+        mirror_file(sp)
+        mirror_file(sp.with_suffix(".pdf"))
     log.info("wrote %s", out)
 
 

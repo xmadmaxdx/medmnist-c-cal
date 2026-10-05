@@ -6,3 +6,16 @@ __pycache__/
 *.pth
 .ipynb_checkpoints/
 .pytest_cache/
+TitleResearchResult.md
+# LaTeX build artifacts (paper sources stay tracked)
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.bcf
+paper/*.blg
+paper/*.out
+paper/*.toc
+paper/*.run.xml
+paper/*.synctex.gz
+paper/*.fdb_latexmk
+paper/*.fls

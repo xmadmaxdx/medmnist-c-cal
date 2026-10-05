@@ -1,27 +1,61 @@
-# Calibrated Compact CNNs Under Clinical Corruptions (MedMNIST-C-Cal)
+# Calibration of Compact CNNs under Corruption on BloodMNIST and DermaMNIST
 
-Winner #1 from `TitleResearchResult.md`: joint robustness-calibration of lightweight
-CNNs on BloodMNIST-C + DermaMNIST-C with calibration-aware losses.
+This repository contains the code for training compact convolutional networks with
+cross-entropy, focal and dual-focal losses on BloodMNIST and DermaMNIST, fitting
+temperature scaling on validation data, and evaluating accuracy, expected calibration
+error (15 bins), negative log-likelihood, Brier score, AUROC, macro-F1 and balanced
+accuracy on clean data and on eight corruptions at five severities each.
 
-Novelty: MedMNIST-C measured accuracy-only (BE/rBE). This repo adds ECE/NLL/Brier,
-temperature scaling, reliability diagrams, and severity curves for CE vs Focal vs DualFocal.
+## Methods
 
-## Datasets (Colab only, <100MB total)
-- BloodMNIST 17,092 images, 8 classes, 28x28 RGB, 35.5MB npz
-- DermaMNIST 10,015 images, 7 classes, 28x28 RGB, 19.7MB npz
-- Total <100MB, well under 20GB cap. CC BY 4.0 (Derma CC BY-NC 4.0).
+- Backbones: ResNet-18 adapted for $28\times28$ inputs (11.17M parameters),
+  SimpleCNN (0.14M), MobileNetV3-Small (untrained reference, 1.53M).
+- Losses: cross-entropy, focal loss ($\gamma=2.0$), dual-focal loss
+  ($(1-q_{gt}+q_j)^\gamma$, $\gamma=2.0$).
+- Calibration: scalar temperature fitted on validation NLL (LBFGS); ECE-15,
+  classwise ECE, reliability diagrams with bin counts.
+- Corruptions (uint8, pre-normalisation, severity-indexed seeds): Gaussian noise,
+  shot noise, blur, brightness, contrast, pixelation, JPEG, area-scaled spatter.
+- Training: AdamW, lr $10^{-3}$, weight decay $5\times10^{-4}$, batch 128,
+  20 epochs, StepLR halving every 6 epochs, horizontal flips only, seeds 0-2.
 
-## Run in Colab — complete copy-paste cells in order
+## Datasets
 
-Cell 0 — YOUR WORK: open fresh T4 GPU runtime, paste to check it.
-WHAT HAPPENS: prints GPU + python; if No GPU, use Runtime > Change runtime type > T4.
+- BloodMNIST: 17,092 images, 8 classes, train/val/test 11,959/1,712/3,421 (CC BY 4.0).
+- DermaMNIST: 10,015 images, 7 classes, train/val/test 7,007/1,003/2,005 (CC BY-NC 4.0).
+- Downloaded automatically to `data/` by `scripts/download_data.py`. Total <100MB.
+
+## Measured results (test, post temperature scaling)
+
+BloodMNIST, ResNet-18:
+
+| Loss | Acc. (%) s1 / s2 | ECE (%) s1 / s2 | NLL s1 / s2 | T s1 / s2 |
+|------|------------------|-----------------|-------------|-----------|
+| CE | 96.84 / 96.43 | 0.73 / 0.71 | 0.11 / 0.11 | 1.60 / 1.73 |
+| Focal | 96.43 / 96.64 | 0.76 / 0.71 | 0.12 / 0.11 | 0.82 / 0.90 |
+| Dual-focal | 96.49 / 96.61 | 0.78 / 0.71 | 0.12 / 0.11 | 0.88 / 0.92 |
+
+DermaMNIST, ResNet-18 (seed 0):
+
+| Loss | Acc. (%) | ECE (%) | NLL | T |
+|------|----------|---------|-----|---|
+| CE | 75.36 | 2.01 | 0.65 | 1.23 |
+| Focal | 75.81 | 4.10 | 0.67 | 1.52 |
+| Dual-focal | 76.46 | 1.97 | 0.65 | 0.77 |
+
+Derma imbalance note: macro-F1 0.47-0.51 and balanced accuracy 0.46-0.49 at
+75-76% accuracy; melanoma recall 21.5% (48/223). Full per-severity tables are
+in the paper appendix.
+
+## Reproducing (Colab, T4 GPU)
+
+Cell 0 — check runtime:
 ```bash
 !nvidia-smi --query-gpu=name,memory.total --format=csv
 !python --version
 ```
 
-Cell 1 — YOUR WORK: paste as-is (URL already set).
-WHAT HAPPENS: clones project, enters folder.
+Cell 1 — clone and enter:
 ```bash
 !git clone https://github.com/xmadmaxdx/medmnist-c-cal.git medmnist-c-cal
 %cd medmnist-c-cal
@@ -29,8 +63,7 @@ WHAT HAPPENS: clones project, enters folder.
 !ls
 ```
 
-Cell 1b — YOUR WORK (do FIRST before training): connect Drive for autosave.
-WHAT HAPPENS: mounts `/content/drive`, creates `MyDrive/medmnist-c-cal-outputs/`. Every `best.pt` + `last.pt` + `history.json` + results auto-mirrors there each save. Local runs skip silently.
+Cell 1b — connect Drive (checkpoint/result autosave; skipped silently outside Colab):
 ```bash
 from google.colab import drive
 drive.mount('/content/drive', force_remount=False)
@@ -38,79 +71,91 @@ drive.mount('/content/drive', force_remount=False)
 !ls -ld /content/drive/MyDrive/medmnist-c-cal-outputs
 ```
 
-Cell 2 — YOUR WORK: paste once, wait ~3-6 min for pip.
-WHAT HAPPENS: installs torch + medmnist + sklearn + matplotlib via `colab_setup.sh`.
+Cell 1c — revival after disconnect (restore checkpoints from Drive; finished cells skip retraining):
+```bash
+!mkdir -p outputs
+!cp -r /content/drive/MyDrive/medmnist-c-cal-outputs/checkpoints-blood /content/drive/MyDrive/medmnist-c-cal-outputs/checkpoints-derma /content/drive/MyDrive/medmnist-c-cal-outputs/ckpt-bloodmnist-* /content/drive/MyDrive/medmnist-c-cal-outputs/ckpt-dermamnist-* outputs/
+!ls outputs/
+```
+
+Cell 2 — install (~3-6 min):
 ```bash
 !bash colab_setup.sh
 ```
 
-Cell 3 — YOUR WORK (recommended): paste to prove code works before download.
-WHAT HAPPENS: 1-epoch fake-data train + eval on CPU, ~1-2 min. Creates `outputs/checkpoints-smoke/` + `outputs/smoke-results.json`.
+Cell 3 — smoke test, no download (~1-2 min):
 ```bash
 !python -m pytest tests/test_smoke.py -v
 !python -m scripts.train --config configs/smoke.yaml --smoke
 !python -m scripts.evaluate --config configs/smoke.yaml --smoke --out outputs/smoke-results.json
 ```
 
-Cell 4 — YOUR WORK: paste to download real data. Do once.
-WHAT HAPPENS: downloads BloodMNIST 35.5MB + DermaMNIST 19.7MB npz to `data/`. Total <100MB. Skips if present.
+Cell 4 — download data (~1 min):
 ```bash
 !python -m scripts.download_data --root data
 !ls -lh data/
 ```
 
-Cell 5 — YOUR WORK: paste, wait ~5-10 min T4 (CPU ~25 min).
-WHAT HAPPENS: trains ResNet-18 DualFocal on BloodMNIST 20 epochs. Saves `outputs/checkpoints-blood/best.pt + last.pt + history.json`. Resume-safe on disconnect.
+Cell 5 — train mains, blood ~5 min, derma ~3 min:
 ```bash
 !python -m scripts.train --config configs/blood.yaml --download
-```
-
-Cell 6 — YOUR WORK: paste, wait ~3-6 min.
-WHAT HAPPENS: fits temperature on val, evals clean + 8 corruptions x 5 severities. Writes `outputs/blood-results.json` + `outputs/reliability.png` + `outputs/severity_ece.png`.
-```bash
-!python -m scripts.evaluate --config configs/blood.yaml --download --out outputs/blood-results.json
-!ls -lh outputs/
-```
-
-Cell 7 — YOUR WORK: paste, wait ~4-8 min T4.
-WHAT HAPPENS: same for DermaMNIST 7 classes.
-```bash
 !python -m scripts.train --config configs/derma.yaml --download
-!python -m scripts.evaluate --config configs/derma.yaml --download --out outputs/derma-results.json
-!ls -lh outputs/
+!ls -lh outputs/checkpoints-blood/ outputs/checkpoints-derma/
 ```
 
-Cell 8 — YOUR WORK: paste to see performance. No training.
-WHAT HAPPENS: prints clean acc/ECE/NLL/Brier + corrupted summary.
+Cell 6 — extended evaluation, ~3 min each:
 ```bash
-!python -c "import json; d=json.load(open('outputs/blood-results.json')); print('BLOOD clean:', d['clean']); print('temp:', d['temperature'])"
-!python -c "import json; d=json.load(open('outputs/derma-results.json')); print('DERMA clean:', d['clean']); print('temp:', d['temperature'])"
+!python -m scripts.evaluate_full --config configs/blood.yaml --download --out outputs/blood-full.json
+!python -m scripts.evaluate_full --config configs/derma.yaml --download --out outputs/derma-full.json
+!ls -lh outputs/*full.json outputs/*.png outputs/*.pdf
 ```
 
-Cell 9 — OPTIONAL full matrix. YOUR WORK: paste only if you have ~1-2h T4.
-WHAT HAPPENS: 3 losses x 2 models = 6 cells, each checkpointed to `outputs/ckpt-<dataset>-<model>-<loss>/`. Continues on single-cell fail.
+Cell 7 — print summary table, no training:
 ```bash
+!python -m scripts.analyze_full --dir outputs
+```
+
+Cell 8 — full loss x backbone grid, derma ~15 min, blood ~30 min:
+```bash
+!python -m scripts.run_matrix --dataset dermamnist --epochs 20 --download
 !python -m scripts.run_matrix --dataset bloodmnist --epochs 20 --download
+!ls -d outputs/ckpt-*
 ```
 
-Cell 10 — verify Drive autosave. YOUR WORK: paste, no training.
-WHAT HAPPENS: lists local + Drive mirrors of every .pt.
+Cell 9 — seed repeats, ~40 min:
+```bash
+!python -m scripts.run_matrix --dataset bloodmnist --epochs 20 --download --seeds 1,2
+!ls -d outputs/ckpt-*-s1 outputs/ckpt-*-s2
+```
+
+Cell 10 — per-cell extended evals, ~2-3 min each (configs under `outputs/tmp-configs/`, regenerated by Cells 8-9):
+```bash
+!python -m scripts.evaluate_full --config outputs/tmp-configs/dermamnist-resnet18_small-ce.yaml --download --out outputs/derma-ce-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/dermamnist-resnet18_small-focal.yaml --download --out outputs/derma-focal-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/dermamnist-resnet18_small-dualfocal.yaml --download --out outputs/derma-dualfocal-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/bloodmnist-resnet18_small-ce-s1.yaml --download --out outputs/blood-ce-s1-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/bloodmnist-resnet18_small-focal-s1.yaml --download --out outputs/blood-focal-s1-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/bloodmnist-resnet18_small-dualfocal-s1.yaml --download --out outputs/blood-dualfocal-s1-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/bloodmnist-resnet18_small-ce-s2.yaml --download --out outputs/blood-ce-s2-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/bloodmnist-resnet18_small-focal-s2.yaml --download --out outputs/blood-focal-s2-full.json
+!python -m scripts.evaluate_full --config outputs/tmp-configs/bloodmnist-resnet18_small-dualfocal-s2.yaml --download --out outputs/blood-dualfocal-s2-full.json
+!ls -lh outputs/*full.json
+```
+
+Cell 11 — verify Drive mirrors match local files:
 ```bash
 !ls -lh outputs/*/best.pt outputs/*/last.pt outputs/*.json 2>/dev/null; echo "--- DRIVE ---"
 !find /content/drive/MyDrive/medmnist-c-cal-outputs -name "*.pt" -o -name "*.json" | sort
 ```
 
-Cell 11 — OPTIONAL save. YOUR WORK: paste to keep full outputs after runtime recycles.
-WHAT HAPPENS: copies `outputs/` to Drive (autosave already did .pt/.json/.png per-save; this is full backup).
+Cell 12 — download result JSONs (weights stay in Drive; files over 100MB are rejected by GitHub):
 ```bash
-!cp -r outputs /content/drive/MyDrive/medmnist-c-cal-outputs-full
-!ls -lh /content/drive/MyDrive/medmnist-c-cal-outputs/
+!zip -r full-results.zip outputs/*full.json outputs/*/history.json
+from google.colab import files
+files.download('full-results.zip')
 ```
 
-If disconnect: re-run Cells 1-2, then re-run train command — it resumes from `last.pt`.
-
-
-## Local smoke (no download, CPU, <2 min)
+Local smoke (no download, CPU):
 ```bash
 pip install -r requirements.txt
 python -m pytest tests/test_smoke.py -v
@@ -119,16 +164,19 @@ python -m scripts.evaluate --config configs/smoke.yaml --smoke --out outputs/smo
 ```
 
 ## Layout
-- `configs/`: smoke/blood/derma YAML
-- `src/data/`: MedMNIST loader, 8 clinical corruptions x severity 1-5
-- `src/models/`: resnet18_small, mobilenetv3_small, simplecnn
-- `src/losses/`: ce, focal, dualfocal (stable variant)
-- `src/calibration/`: ECE-15, NLL, Brier, temperature scaling
-- `src/engine/`: trainer with resume, clean/corrupted evaluator
-- `src/viz/`: reliability + severity ECE plots
-- `scripts/`: train, evaluate, run_matrix, download_data
-- `tests/`: offline fake-data smoke
 
-## Hypothesis
-DualFocal cuts corrupted ECE >=4pp vs CE while targeted-style aug holds accuracy.
-Fail if ECE improves ID-only. Report clean acc + corrupted acc + ECE + NLL + 3 seeds.
+- `configs/`: smoke/blood/derma YAML
+- `src/data/`: MedMNIST loader, 8 corruptions x severity 1-5
+- `src/models/`: resnet18_small, mobilenetv3_small, simplecnn
+- `src/losses/`: ce, focal, dualfocal
+- `src/calibration/`: ECE-15, classwise ECE, NLL, Brier, temperature scaling
+- `src/engine/`: trainer with resume, clean/corrupted evaluator, extended metrics
+- `src/viz/`: reliability (with bin counts) + severity plots
+- `scripts/`: train, evaluate, evaluate_full, run_matrix, download_data, analyze_full, regen_plots, dump_tables
+- `tests/`: offline fake-data smoke
+- `paper/`: manuscript sources (`paper.tex`, `references.bib`, `fig/`)
+
+## Data availability
+
+BloodMNIST (CC BY 4.0) and DermaMNIST via HAM10000 (CC BY-NC 4.0, research use
+only).
