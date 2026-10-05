@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
-outputs/
-data/
+/outputs/
+/data/
 *.pt
 *.pth
 .ipynb_checkpoints/
