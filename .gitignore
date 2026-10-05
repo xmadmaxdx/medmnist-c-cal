@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+outputs/
+data/
+*.pt
+*.pth
+.ipynb_checkpoints/
+.pytest_cache/

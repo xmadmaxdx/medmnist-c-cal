@@ -1,0 +1,19 @@
+data:
+  dataset: dermamnist
+  root: data
+  batch_size: 128
+  num_workers: 2
+model:
+  name: resnet18_small
+  num_classes: 7
+loss:
+  name: dualfocal
+  gamma: 2.0
+  gamma2: 1.0
+  eta: 1.0
+train:
+  epochs: 20
+  lr: 0.001
+  optimizer: adamw
+  seed: 0
+  checkpoint_dir: outputs/checkpoints-derma

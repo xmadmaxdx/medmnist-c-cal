@@ -1,0 +1,20 @@
+data:
+  dataset: fake
+  root: data
+  batch_size: 32
+  num_workers: 0
+  subset_train: 200
+model:
+  name: simplecnn
+  num_classes: 8
+loss:
+  name: dualfocal
+  gamma: 2.0
+  gamma2: 1.0
+  eta: 1.0
+train:
+  epochs: 1
+  lr: 0.001
+  optimizer: adamw
+  seed: 0
+  checkpoint_dir: outputs/checkpoints-smoke
