@@ -80,7 +80,11 @@ def apply_corruption(img: Image.Image, name: str, severity: int, seed: int = 0) 
         buf.seek(0)
         return Image.open(buf).convert("RGB")
     # Spatter mimics stain deposit using random dark blobs.
-    density = (30, 80, 160, 300, 500)[severity - 1]
+    # Densities scale with image area: reference densities target 224px images,
+    # so 28px inputs use density/64 to avoid full-frame blackout.
+    base_density = (30, 80, 160, 300, 500)[severity - 1]
+    h0, w0 = _to_array(img).shape[:2]
+    density = max(1, int(round(base_density * (h0 * w0) / (224.0 * 224.0))))
     out = _to_array(img)
     h, w, _ = out.shape
     for _ in range(density):

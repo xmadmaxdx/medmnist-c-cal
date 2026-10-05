@@ -34,6 +34,30 @@ def brier_score(logits: torch.Tensor, labels: torch.Tensor) -> float:
     return float(((prob - onehot) ** 2).sum(dim=1).mean().item())
 
 
+def mean_confidence(logits: torch.Tensor, temperature: float = 1.0) -> float:
+    return float(F.softmax(logits / max(0.05, temperature), dim=1).max(dim=1).values.mean().item())
+
+
+def classwise_ece(logits: torch.Tensor, labels: torch.Tensor, n_bins: int = 15) -> float:
+    """Mean per-class one-vs-rest ECE. Empty class-bin pairs are skipped."""
+    prob = F.softmax(logits, dim=1)
+    k = logits.size(1)
+    total = 0.0
+    for c in range(k):
+        conf = prob[:, c]
+        acc = labels.eq(c).float()
+        edges = torch.linspace(0.0, 1.0, n_bins + 1, device=logits.device)
+        ece_c = 0.0
+        for i in range(n_bins):
+            lo, hi = edges[i], edges[i + 1]
+            mask = (conf > lo) & (conf <= hi) if i > 0 else (conf >= lo) & (conf <= hi)
+            n = int(mask.sum().item())
+            if n > 0:
+                ece_c += (n / conf.numel()) * abs(float(acc[mask].mean()) - float(conf[mask].mean()))
+        total += ece_c
+    return total / max(1, k)
+
+
 def reliability_points(logits: torch.Tensor, labels: torch.Tensor, n_bins: int = 15) -> dict:
     prob = F.softmax(logits, dim=1)
     conf, pred = prob.max(dim=1)
