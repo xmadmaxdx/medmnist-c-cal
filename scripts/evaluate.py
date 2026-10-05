@@ -76,11 +76,14 @@ def main() -> None:
     out.write_text(json.dumps(results, indent=2), encoding="utf-8")
     mirror_file(out)
     tl, ty = _val_logits(model, test_loader, device)
-    rp = save_reliability(reliability_points(tl / temp, ty), out.parent / "reliability.png")
-    mirror_file(rp)
+    stem = out.stem
+    for ext in ("png", "pdf"):
+        rp = save_reliability(reliability_points(tl / temp, ty), out.parent / f"{stem}.reliability.{ext}")
+        mirror_file(rp)
     if sev_curve:
-        sp = save_severity_curve(sev_curve, out.parent / "severity_ece.png")
-        mirror_file(sp)
+        for ext in ("png", "pdf"):
+            sp = save_severity_curve(sev_curve, out.parent / f"{stem}.severity_ece.{ext}")
+            mirror_file(sp)
     log.info("wrote %s", out)
 
 
