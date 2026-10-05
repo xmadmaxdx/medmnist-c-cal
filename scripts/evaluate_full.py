@@ -87,6 +87,16 @@ def main() -> None:
         results["corrupted"] = detail
         results["mean_corrupted_acc"] = float(sum(v[4] for v in sev_acc.values()) / max(1, len(sev_acc)))
         results["mean_corrupted_ece"] = float(sum(v[4] for v in sev_ece.values()) / max(1, len(sev_ece)))
+        from src.data.datasets import CorruptedWrapper
+        from torch.utils.data import DataLoader as _DL
+
+        rel_corr = {}
+        for name in corr:
+            ds = CorruptedWrapper(imgs, labels, name, 3)
+            loader = _DL(ds, batch_size=cfg.data.batch_size, shuffle=False, num_workers=0)
+            cl, cy = _collect(model, loader, device)
+            rel_corr[name] = reliability_full(cl / temp, cy)
+        results["reliability_corrupted_sev3"] = rel_corr
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, indent=2), encoding="utf-8")

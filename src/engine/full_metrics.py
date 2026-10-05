@@ -18,15 +18,16 @@ def _numpy(logits: torch.Tensor, labels: torch.Tensor, temperature: float = 1.0)
 
 def summarize_full(logits: torch.Tensor, labels: torch.Tensor, temperature: float = 1.0) -> dict:
     """One dict with every scalar metric. All values are JSON-safe floats."""
-    prob, y = _numpy(logits, labels, temperature)
+    scaled = logits / max(0.05, temperature)
+    prob, y = _numpy(scaled, labels, 1.0)
     pred = prob.argmax(axis=1)
     out = {
         "acc": float(accuracy_score(y, pred)),
-        "ece": expected_calibration_error(logits, labels, ECE_BINS),
-        "nll": negative_log_likelihood(logits / max(0.05, temperature), labels),
-        "brier": brier_score(logits / max(0.05, temperature), labels),
+        "ece": expected_calibration_error(scaled, labels, ECE_BINS),
+        "nll": negative_log_likelihood(scaled, labels),
+        "brier": brier_score(scaled, labels),
         "meanconf": float(prob.max(axis=1).mean()),
-        "classwise_ece": classwise_ece(logits / max(0.05, temperature), labels, ECE_BINS),
+        "classwise_ece": classwise_ece(scaled, labels, ECE_BINS),
         "macro_f1": float(f1_score(y, pred, average="macro", zero_division=0)),
         "bal_acc": float(balanced_accuracy_score(y, pred)),
     }

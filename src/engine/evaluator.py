@@ -4,7 +4,8 @@ from __future__ import annotations
 import torch
 from torch.utils.data import DataLoader
 
-from src.calibration.metrics import expected_calibration_error, negative_log_likelihood, brier_score
+from src.calibration.metrics import (brier_score, classwise_ece, expected_calibration_error,
+                                     mean_confidence, negative_log_likelihood, reliability_points)
 from src.constants import ECE_BINS
 from src.data.corruptions import CORRUPTION_NAMES
 from src.data.datasets import CorruptedWrapper
@@ -31,6 +32,7 @@ def _summarize(logits: torch.Tensor, labels: torch.Tensor, temperature: float = 
         "ece": expected_calibration_error(scaled, labels, ECE_BINS),
         "nll": negative_log_likelihood(scaled, labels),
         "brier": brier_score(scaled, labels),
+        "meanconf": mean_confidence(logits, temperature),
     }
 
 
